@@ -166,16 +166,52 @@ def generate_simout(jobid = None, resultsdir = None, partial = None, output = sy
         #('  num stores from remote cache', 'L1-D.stores-where-cache-remote' , str),
       ])
     
-  summation_list = ['performance_model.instruction_count', 'performance_model.cycle_count_fixed', 'branch_predictor.num-correct', 'branch_predictor.num-incorrect']
-  for tlb in ('itlb', 'dtlb', 'stlb'):
-    summation_list += ['%s.access'%tlb, '%s.miss'%tlb]
-  for c in existcaches:
-    summation_list += ['%s.accesses'%c, '%s.misses'%c]
-  summation_list += ['L1-D.loads-where-dram', 'L1-D.loads-where-dram-cache', 'L1-D.loads-where-cache-remote']
+  # Get general results to be summed
+  total_list = ['performance_model.instruction_count', 'performance_model.cycle_count_fixed', 'branch_predictor.num-correct', 'branch_predictor.num-incorrect']
   
-  summed_results = {}
-  for name in summation_list:
-    summed_results[name] = sum(results[name])
+  for tlb in ('itlb', 'dtlb', 'stlb'):
+    total_list += ['%s.access'%tlb, '%s.miss'%tlb]
+  
+  allcaches = [ 'L1-I', 'L1-D' ] + [ 'L%u'%l for l in range(2, 5) ]
+  existcaches = [ c for c in allcaches if '%s.loads'%c in results ]
+  for c in existcaches:
+    total_list += ['%s.accesses'%c, '%s.misses'%c]
+      
+  allcaches = [ 'nuca-cache', 'dram-cache' ]
+  existcaches = [ c for c in allcaches if '%s.reads'%c in results ]
+  for c in existcaches:
+    total_list += ['%s.accesses'%c, '%s.misses'%c]
+  
+  total_list += ['L1-D.loads-where-dram', 'L1-D.loads-where-dram-cache', 'L1-D.loads-where-cache-remote']
+
+  total_results = {}
+  for name in total_list:
+    total_results[name] = sum(results[name])
+    
+  # Get results that need calculation
+  total_list += ['performance_model.ipc', 'branch_predictor.missrate', 'branch_predictor.mpki']
+  total_results['performance_model.ipc'] = total_results['performance_model.instruction_count'] / total_results['performance_model.cycle_count_fixed']
+  total_results['branch_predictor.missrate'] = 100*float(total_results['branch_predictor.num-incorrect']) / ((total_results['branch_predictor.num-correct'] + total_results['branch_predictor.num-incorrect']) or 1)
+  total_results['branch_predictor.mpki'] = 1000 * float(total_results['branch_predictor.num-incorrect']) / (total_results['performance_model.instruction_count'] or 1)
+  
+  for tlb in ('itlb', 'dtlb', 'stlb'):
+    total_list += ['%s.missrate'%tlb, '%s.mpki'%tlb]
+    total_results['%s.missrate'%tlb] = 100*total_results['%s.miss'%tlb]/float(total_results['%s.access'%tlb] or 1)
+    total_results['%s.mpki'%tlb] = 1000*total_results['%s.miss'%tlb]/float(total_results['performance_model.instruction_count'] or 1)
+  
+  allcaches = [ 'L1-I', 'L1-D' ] + [ 'L%u'%l for l in range(2, 5) ]
+  existcaches = [ c for c in allcaches if '%s.loads'%c in results ]
+  for c in existcaches:
+    total_list += ['%s.missrate'%c, '%s.mpki'%c]
+    total_results['%s.missrate'%c] = 100*total_results['%s.misses'%c]/float(total_results['%s.accesses'%c]) if float(total_results['%s.accesses'%c]) else float('inf')
+    total_results['%s.mpki'%c] = 1000*total_results['%s.misses'%c]/float(total_results['performance_model.instruction_count']) if total_results['performance_model.instruction_count'] else float('inf')
+    
+  allcaches = [ 'nuca-cache', 'dram-cache' ]
+  existcaches = [ c for c in allcaches if '%s.reads'%c in results ]
+  for c in existcaches:
+    total_list += ['%s.missrate'%c, '%s.mpki'%c]
+    total_results['%s.missrate'%c] = 100*total_results['%s.misses'%c]/float(total_results['%s.accesses'%c]) if total_results['%s.accesses'%c] else float('inf')
+    total_results['%s.mpki'%c] = 1000*total_results['%s.misses'%c]/float(icount) if icount else float('inf')
 
   lines = []
   lines.append([''] + [ 'Core %u' % i for i in range(ncores) ] +['Total'])
@@ -185,8 +221,9 @@ def generate_simout(jobid = None, resultsdir = None, partial = None, output = sy
     if name and name in results:
       for core in range(ncores):
         line.append(' '+func(results[name][core]))
-      if name in summation_list:
-        line.append(' '+func(summed_results[name]))
+        
+      if name in total_list:
+        line.append(' '+func(total_results[name]))
       else:
         line.append('')
     else:

@@ -165,17 +165,32 @@ def generate_simout(jobid = None, resultsdir = None, partial = None, output = sy
         ('  num loads from remote cache', 'L1-D.loads-where-cache-remote' , str),
         #('  num stores from remote cache', 'L1-D.stores-where-cache-remote' , str),
       ])
+    
+  summation_list = ['performance_model.instruction_count', 'performance_model.cycle_count_fixed', 'branch_predictor.num-correct', 'branch_predictor.num-incorrect']
+  for tlb in ('itlb', 'dtlb', 'stlb'):
+    summation_list += ['%s.access'%tlb, '%s.miss'%tlb]
+  for c in existcaches:
+    summation_list += ['%s.accesses'%c, '%s.misses'%c]
+  summation_list += ['L1-D.loads-where-dram', 'L1-D.loads-where-dram-cache', 'L1-D.loads-where-cache-remote']
+  
+  summed_results = {}
+  for name in summation_list:
+    summed_results[name] = sum(results[name])
 
   lines = []
-  lines.append([''] + [ 'Core %u' % i for i in range(ncores) ])
+  lines.append([''] + [ 'Core %u' % i for i in range(ncores) ] +['Total'])
 
   for title, name, func in template:
     line = [ title ]
     if name and name in results:
       for core in range(ncores):
         line.append(' '+func(results[name][core]))
+      if name in summation_list:
+        line.append(' '+func(summed_results[name]))
+      else:
+        line.append('')
     else:
-      line += [''] * ncores
+      line += [''] * (ncores+1)
     lines.append(line)
 
 

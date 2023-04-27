@@ -214,18 +214,20 @@ def generate_simout(jobid = None, resultsdir = None, partial = None, output = sy
     total_results['%s.mpki'%c] = 1000*total_results['%s.misses'%c]/float(icount) if icount else float('inf')
 
   lines = []
-  lines.append([''] + [ 'Core %u' % i for i in range(ncores) ] +['Total'])
+  lines.append([''] + ['Total'] + [ 'Core %u' % i for i in range(ncores) ])
 
   for title, name, func in template:
     line = [ title ]
     if name and name in results:
-      for core in range(ncores):
-        line.append(' '+func(results[name][core]))
-        
       if name in total_list:
         line.append(' '+func(total_results[name]))
       else:
         line.append('')
+      
+      for core in range(ncores):
+        line.append(' '+func(results[name][core]))
+        
+      
     else:
       line += [''] * (ncores+1)
     lines.append(line)

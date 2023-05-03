@@ -11,7 +11,9 @@ set boxwidth 0.75 absolute
 set style fill solid 1.00 border -1
 set style histogram rowstacked
 set style data histograms
-set key invert reverse Left outside
+set key horizontal
+set key right top
+set key outside
 set mxtics 2
 set mytics 2
 set ylabel "%s"
@@ -40,6 +42,8 @@ set xlabel "Core"
         gnuplot_cmd_list.append('%s ' % data[c].get(t, 0.0))
       gnuplot_cmd_list.append('\n')
     gnuplot_cmd_list.append('e\n')
+    
+  gnuplot_cmd_list.append('set key 100,100\n')
 
   if save_gnuplot_input:
     f = open('%s.gnuplot' % outfile, "w")

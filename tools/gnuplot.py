@@ -20,6 +20,9 @@ set ylabel "%s"
 set xlabel "Core"
 ''' % (size[0], size[1], outfile, ylabel)
   gnuplot_cmd_list.append(header)
+  
+  if ylabel == "Fraction of time":
+    gnuplot_cmd_list.append('set yrange [0:1]\n')
 
   if title:
     gnuplot_cmd_list.append('set title "%s"\n' % title)

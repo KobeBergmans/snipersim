@@ -167,7 +167,7 @@ def generate_simout(jobid = None, resultsdir = None, partial = None, output = sy
       ])
     
   # Get general results to be summed
-  total_list = ['performance_model.instruction_count', 'performance_model.cycle_count_fixed', 'branch_predictor.num-correct', 'branch_predictor.num-incorrect']
+  total_list = ['performance_model.instruction_count', 'performance_model.cycle_count_fixed', 'branch_predictor.num-correct', 'branch_predictor.num-incorrect', 'dram.accesses']
   
   for tlb in ('itlb', 'dtlb', 'stlb'):
     total_list += ['%s.access'%tlb, '%s.miss'%tlb]
@@ -212,6 +212,45 @@ def generate_simout(jobid = None, resultsdir = None, partial = None, output = sy
     total_list += ['%s.missrate'%c, '%s.mpki'%c]
     total_results['%s.missrate'%c] = 100*total_results['%s.misses'%c]/float(total_results['%s.accesses'%c]) if total_results['%s.accesses'%c] else float('inf')
     total_results['%s.mpki'%c] = 1000*total_results['%s.misses'%c]/float(icount) if icount else float('inf')
+    
+  total_list += ['dram.avglatency']
+  total = 0
+  total_results['dram.avglatency'] = 0
+  for i in range(ncores):
+    if (results['dram.avglatency'][i]) != float('inf'):
+      total += 1
+      total_results['dram.avglatency'] += results['dram.avglatency'][i]
+  total_results['dram.avglatency'] /= total
+  
+  if 'dram.total-read-queueing-delay' in results:
+    total_list += ['dram.avgqueueread', 'dram.avgqueuewrite']
+    total_results['dram.avgqueueread'] = 0
+    total_results['dram.avgqueuewrite'] = 0
+    for i in range(ncores):
+      if (results['dram.avglatency'][i]) != float('inf'):
+        total_results['dram.avgqueueread'] += results['dram.avgqueueread'][i]
+        total_results['dram.avgqueuewrite'] += results['dram.avgqueuewrite'][i]
+        
+    total_results['dram.avgqueueread'] /= total
+    total_results['dram.avgqueuewrite'] /= total
+  else:
+    total_list += ['dram.avgqueue']
+    total_results['dram.avgqueue'] = 0
+    for i in range(ncores):
+      if (results['dram.avglatency'][i]) != float('inf'):
+        total_results['dram.avgqueue'] += results['dram.avgqueue'][i]
+        
+    total_results['dram.avgqueue'] /= total
+
+  if 'dram-queue.total-time-used' in results:
+    total_list += ['dram.bandwidth']
+    total_results['dram.bandwidth'] = 0
+    for i in range(ncores):
+      if (results['dram.avglatency'][i]) != float('inf'):
+        total_results['dram.bandwidth'] += results['dram.bandwidth'][i]
+        
+    total_results['dram.bandwidth'] /= total
+    
 
   lines = []
   lines.append([''] + ['Total'] + [ 'Core %u' % i for i in range(ncores) ])
